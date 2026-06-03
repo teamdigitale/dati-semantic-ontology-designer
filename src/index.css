@@ -1,0 +1,24 @@
+body {
+  margin: 0;
+  padding: 0;
+  font-family: 'PT Sans', sans-serif;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+:root {
+  --highlight: #f8a915;
+  --disabled: #8894a3;
+  --concept: #B08D00;
+  --role: #065A85;
+  --attribute: #4B7900;
+  --individual: #d3b3ef;
+  --view: #ed81ed;
+  --mapping: #8989ff;
+  --annotation: rgb(220, 141, 0);
+  --table: black;
+  --mainMenuColor: #2D3946;
+  --success: #81be31;
+  --red: #fb3f42;
+  --color-primary: #1677ff;
+}

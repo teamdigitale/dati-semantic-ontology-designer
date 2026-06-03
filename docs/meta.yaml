@@ -1,0 +1,7 @@
+titlepage: true
+titlepage-logo: assets/logo.png
+logo-width: 100mm
+toc-own-page: true
+author: "OBDA Systems"
+date: \today
+description: "Design your ontology graphically, enhanced by AI"

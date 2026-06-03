@@ -1,0 +1,27 @@
+---
+layout: default
+---
+
+{{ content }}
+
+{%- assign ordered_pages = site.pages | sort: "nav_order" -%}
+
+{% for p in ordered_pages -%}
+  {%- if forloop.length > 0 -%}
+    {%- if p.nav_order > page.nav_order -%}
+      {%- assign next = p.url -%}
+      {% break %}
+    {%- endif -%}
+  {%- endif -%}
+{% endfor %}
+
+{% for p in ordered_pages -%}
+  {%- if forloop.length > 0 -%}
+    {%- if p.nav_order < page.nav_order -%}
+      {%- assign prev = p.url -%}
+    {%- endif -%}
+  {%- endif -%}
+{% endfor %}
+
+<a class="btn btn-purple" href="{{ site.baseurl | append: prev }}">Previous</a>
+<a class="btn btn-blue" href="{{ site.baseurl | append: next }}">Next</a>

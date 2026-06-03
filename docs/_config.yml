@@ -1,0 +1,12 @@
+title: Ontology Designer User Manual
+remote_theme: just-the-docs/just-the-docs
+permalink: /:title
+favicon_ico: "/assets/favicon.ico"
+logo: "/assets/logo.png"
+color_scheme: "light"
+defaults:
+  -
+    scope:
+      path: "**/*.md"
+    values:
+      layout: "page"
