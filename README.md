@@ -1,2 +1,2 @@
 # dati-semantic-ontology-designer
-Repository for the front-end of a OntologIA
+Front-end repo for OntologIA
