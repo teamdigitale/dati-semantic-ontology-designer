@@ -20,8 +20,8 @@ The ontology-designer is composed of two components: a backend server and a fron
 Clone the repository and navigate to the project directory:
 
 ```bash
-git clone ai_assistant
-cd ai_assistant
+git clone https://github.com/teamdigitale/dati-semantic-ontology-ai-assistant.git
+cd dati-semantic-ontology-ai-assistant
 ```
 
 Project installation follows standard Python packaging guidelines:
@@ -88,7 +88,7 @@ The following table describes the role of environment variables:
 |**EMBEDDING_DIM**|Embedding vector dimensions|Yes|integer|1024|
 |**EMBEDDING_MAX_TOKENS_**|Embedding maximum input length|Yes|integer|8192|
 
-### BackendUsage
+### Backend Usage
 
 Once installed you can start the FastAPI backend through the `ai_assistant` command:
 
