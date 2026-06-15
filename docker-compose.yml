@@ -4,9 +4,7 @@ services:
       context: https://github.com/teamdigitale/dati-semantic-ontology-ai-assistant.git#main
     ports:
       - "${AI_ASSISTANT_PORT:-8200}:8200"
-    env_file:
-      - path: .env
-        required: false
+    env_file: .env
     environment:
       NO_AUTH: "True"
       WORKING_DIR: /app/data/rag_storage
