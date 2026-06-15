@@ -1,0 +1,31 @@
+services:
+  ai-assistant:
+    build:
+      context: https://github.com/teamdigitale/dati-semantic-ontology-ai-assistant.git#main
+    ports:
+      - "${AI_ASSISTANT_PORT:-8200}:8200"
+    env_file:
+      - path: .env
+        required: false
+    environment:
+      NO_AUTH: "True"
+      WORKING_DIR: /app/data/rag_storage
+    volumes:
+      - ai-assistant-data:/app/data/rag_storage
+    restart: unless-stopped
+
+  designer:
+    build:
+      context: .
+      target: webapp
+    ports:
+      - "${DESIGNER_PORT:-8080}:8080"
+    volumes:
+      - ./config.docker.js:/usr/share/nginx/html/config.js:ro
+    depends_on:
+      ai-assistant:
+        condition: service_started
+    restart: unless-stopped
+
+volumes:
+  ai-assistant-data:
