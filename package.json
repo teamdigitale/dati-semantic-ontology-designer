@@ -41,7 +41,7 @@
     "@types/react": "^18.3.28",
     "@types/react-dom": "^18.3.7",
     "@types/sparql-http-client": "^3.1.0",
-    "@vitejs/plugin-react": "^5.1.0",
+    "@vitejs/plugin-react": "^5.2.0",
     "eslint": "^9.39.1",
     "eslint-plugin-react-hooks": "^7.0.1",
     "eslint-plugin-react-refresh": "^0.4.24",
@@ -50,7 +50,7 @@
     "sass-embedded": "^1.100.0",
     "typescript": "~5.9.3",
     "typescript-eslint": "^8.46.3",
-    "vite": "^7.2.6",
+    "vite": "^8.0.16",
     "vite-plugin-commonjs": "^0.10.4"
   },
   "peerDependencies": {
