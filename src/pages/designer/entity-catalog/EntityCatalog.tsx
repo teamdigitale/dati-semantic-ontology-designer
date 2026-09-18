@@ -30,7 +30,7 @@ export default function EntityCatalog(props: EntityCatalogProps) {
   const [searchValue, setSearchValue] = useState<string | undefined>()
   const [searchMode, setSearchMode] = useState<string>(searchModes[0].key)
   const [selectedEntities, setSelectedEntities] = useState(new Set<number>())
-  const [checkedEntityTypes, setCheckedEntityTypes] = useState<TypesEnum[]>([])
+  const [checkedEntityTypes, setCheckedEntityTypes] = useState<TypesEnum[]>(props.findSimilarTo?.types || [])
   const [showDomainRangeSelector, setShowDomainRangeSelector] = useState<boolean>(false)
   const entityTypeOptions = [
     { label: <><EntityIcon type={TypesEnum.CLASS} />Classes</>, value: TypesEnum.CLASS, },
@@ -56,7 +56,7 @@ export default function EntityCatalog(props: EntityCatalogProps) {
         setRemoteCatalogEntities(entities)
       }).finally(() => setLoading(false))
     }
-  }, [sparqlEndpointConnection, checkedEntityTypes, searchValue, language, props.findSimilarTo])
+  }, [sparqlEndpointConnection, checkedEntityTypes, searchValue, searchMode, language, props.findSimilarTo])
 
   const treeData: (DataNode & { entity: GrapholEntity })[] = remoteCatalogEntities.map((e, i) => ({
     key: i,
@@ -140,8 +140,17 @@ export default function EntityCatalog(props: EntityCatalogProps) {
   }))
 
   return <Flex vertical gap={16} style={{ height: "100%" }}>
-    {!props.findSimilarTo && <>
-      <Space.Compact>
+    {props.findSimilarTo && <Flex gap={8} align="center">
+      <Typography.Title style={{ margin: 0 }} level={5}>Similar Entities to:</Typography.Title>
+      <Flex gap={8} align="center">
+        <EntityIcon type={props.findSimilarTo.types[0]} />
+        <Typography.Title style={{ margin: 0 }} level={5}>
+          {props.findSimilarTo.getDisplayedName(grapholscape.entityNameType, grapholscape.language)}
+        </Typography.Title>
+      </Flex>
+    </Flex>}
+    <>
+      {!props.findSimilarTo && <Space.Compact>
         <Select
           style={{ width: 120 }}
           defaultValue={searchModes[0].key}
@@ -157,22 +166,13 @@ export default function EntityCatalog(props: EntityCatalogProps) {
           placeholder="Search..."
           suffix={<SearchOutlined />}
         />
-      </Space.Compact>
+      </Space.Compact>}
       <Checkbox.Group
         options={entityTypeOptions}
         value={checkedEntityTypes}
         onChange={(checkedEntityTypes) => setCheckedEntityTypes(checkedEntityTypes)}
       />
-    </>}
-    {props.findSimilarTo && <Flex gap={8} align="center">
-      <Typography.Title style={{ margin: 0 }} level={5}>Similar Entities to:</Typography.Title>
-      <Flex gap={8} align="center">
-        <EntityIcon type={props.findSimilarTo.types[0]} />
-        <Typography.Title style={{ margin: 0 }} level={5}>
-          {props.findSimilarTo.getDisplayedName(grapholscape.entityNameType, grapholscape.language)}
-        </Typography.Title>
-      </Flex>
-    </Flex>}
+    </>
     {loading
       ? <Skeleton active />
       : treeData.length === 0

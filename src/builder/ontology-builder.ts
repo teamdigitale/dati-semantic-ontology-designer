@@ -1,4 +1,4 @@
-import cytoscape, { SingularElementArgument } from "cytoscape"
+import cytoscape, { EdgeSingular, SingularElementArgument } from "cytoscape"
 import {
   Annotation,
   AnnotationProperty,
@@ -7,6 +7,7 @@ import {
   DiagramBuilder,
   DiagramColorManager,
   DiagramRepresentation, FunctionalityEnum, GrapholElement, GrapholEntity,
+  GrapholNode,
   GrapholObjectPropertyEdge,
   Hierarchy, Iri, RendererStatesEnum, TypesEnum,
   floatyOptions,
@@ -14,12 +15,12 @@ import {
   ui,
 } from "grapholscape"
 import { RDFGraph, SHACLShape } from "src/gen"
+import { AdvancedFormProps, BaseEntityInfo } from "src/pages/designer/entity-form-props"
 import { GrapholscapeDesigner } from "."
 import { toggleComplete, toggleDisjointness } from "./edit-hierarchy"
 import { DesignerEvent } from "./lifecycle"
 import { PropertyInfo } from "./properties-info"
 import { renameElement } from "./rename-element"
-import { AdvancedFormProps, BaseEntityInfo } from "src/pages/designer/entity-form-props"
 
 type GscapeDiagramSelector = ui.GscapeDiagramSelector
 
@@ -32,7 +33,15 @@ export type OntologyProblem = {
 export default class OntologyBuilder {
 
   grapholscape: GrapholscapeDesigner
-  diagramBuilder: DiagramBuilder
+  _diagramBuilder: DiagramBuilder
+
+  get diagramBuilder() { return this._diagramBuilder }
+  set diagramBuilder(newBuilder) {
+    this._diagramBuilder = newBuilder
+    this._diagramBuilder.entityNameType = this.grapholscape.entityNameType
+    this._diagramBuilder.language = this.grapholscape.language
+  }
+
   private rendererState = RendererStatesEnum.FLOATY
 
   constructor(grapholscape) {
@@ -903,17 +912,68 @@ export default class OntologyBuilder {
       let addedElem: GrapholElement | undefined
       let resultCollection = cytoscape().collection()
       let newDiagramId: number = 0
+      const iriEntityMap: Map<string, GrapholEntity> = new Map()
+
+      /**
+       * Add edge between two entities (inclusions, equivalences, instanceOfs...)
+       * @param edge 
+       */
+      const addEdge = (edge: EdgeSingular) => {
+        sourceEntity = this.grapholscape.ontology.getEntity(edge.source().data().iri) || iriEntityMap.get(edge.source().data().iri)
+        targetEntity = this.grapholscape.ontology.getEntity(edge.target().data().iri) || iriEntityMap.get(edge.target().data().iri)
+        const sourceId = sourceEntity?.getIdInDiagram(targetDiagram!.id, edge.source().data().type, this.rendererState)
+        const targetId = targetEntity?.getIdInDiagram(targetDiagram!.id, edge.target().data().type, this.rendererState)
+
+        if (edge.data().iri) {
+          entity = this.grapholscape.ontology.getEntity(edge.data().iri)
+          if (!entity) {
+            parsedEntity = _tempOntology.getEntity(edge.data().iri)
+            // if entity is not in current ontology, clear all occurrence
+            parsedEntity.removeAllOccurrences(this.rendererState)
+            this.grapholscape.ontology.addEntity(parsedEntity)
+            entity = parsedEntity
+          }
+        } else {
+          entity = undefined
+        }
+
+        if (sourceId && targetId) {
+          addedElem = this.diagramBuilder.addEdge(sourceId, targetId, edge.data().type)
+          if (addedElem) {
+            resultCollection = resultCollection.union(targetCy!.$id(addedElem.id))
+            if (entity) {
+              entity.addOccurrence(addedElem, this.grapholscape.renderState)
+              addedElem.displayedName = entity.getDisplayedName(
+                this.grapholscape.entityNameType,
+                this.grapholscape.language,
+              )
+              addedElem.iri = entity.iri.fullIri
+              this.diagramBuilder.diagramRepresentation.updateElement(addedElem, entity, false)
+            }
+          }
+        }
+      }
 
       _tempOntology.diagrams.forEach(d => {
-        if (baseDiagramId === undefined || !targetDiagram) {
-          // if diagramId not passed then create a new diagram for each diagram to merge (basically not a merge)
-          while (this.grapholscape.ontology.getDiagram(newDiagramId) !== undefined) {
-            newDiagramId += 1
+        if (baseDiagramId === undefined) {
+          targetDiagram = undefined
+          // if special diagram, keep it special
+          if (d.id < 0) {
+            newDiagramId = d.id
+            targetDiagram = this.grapholscape.ontology.getDiagram(newDiagramId)
+          } else {
+            // if diagramId not passed then create a new diagram for each diagram to merge (basically not a merge)
+            while (this.grapholscape.ontology.getDiagram(newDiagramId) !== undefined) {
+              newDiagramId += 1
+            }
           }
 
-          targetDiagram = new Diagram(d.name, newDiagramId)
-          targetDiagram.representations.set(this.rendererState, new DiagramRepresentation(floatyOptions))
-          this.grapholscape.ontology.addDiagram(targetDiagram)
+          if (!targetDiagram) {
+            targetDiagram = new Diagram(d.name, newDiagramId)
+            targetDiagram.representations.set(this.rendererState, new DiagramRepresentation(floatyOptions))
+            this.grapholscape.ontology.addDiagram(targetDiagram)
+          }
+
           this.diagramBuilder = new DiagramBuilder(targetDiagram, this.rendererState)
         }
 
@@ -951,7 +1011,7 @@ export default class OntologyBuilder {
           // add hierarchies
           hierarchies = _tempOntology.getHierarchiesOf(entity.iri)
           hierarchies.forEach(h => {
-            if (addedHierarchies.includes(h.id)) {
+            if (targetDiagram.id < 0 || addedHierarchies.includes(h.id)) {
               return
             }
             // build the hierarchy from updated entities in the target ontology, not the temp one!
@@ -1006,11 +1066,15 @@ export default class OntologyBuilder {
 
         diagramRepr?.cy.nodes(`[ type = "${TypesEnum.DATA_PROPERTY}" ]`).forEach(dp => {
           parsedEntity = _tempOntology.getEntity(dp.data().iri)
+          const ownerClassNode = dp.neighborhood(`[ type = "${TypesEnum.CLASS}" ]`).first()
+          if (ownerClassNode.empty()){
+            return
+          }
           sourceEntity = this.grapholscape
             .ontology
-            .getEntity(dp.neighborhood(`[ type = "${TypesEnum.CLASS}" ]`).first().data().iri)
+            .getEntity(ownerClassNode.data().iri)
 
-          if (parsedEntity && sourceEntity) {
+          if (parsedEntity) {
             entity = this.grapholscape.ontology.getEntity(parsedEntity.iri)
             if (!entity) {
               // if entity is not in current ontology, clear all occurrences
@@ -1029,11 +1093,15 @@ export default class OntologyBuilder {
 
         diagramRepr?.cy.nodes(`[ type = "${TypesEnum.INDIVIDUAL}" ]`).forEach(ind => {
           parsedEntity = _tempOntology.getEntity(ind.data().iri)
+          const ownerClassNode = ind.neighborhood(`[ type = "${TypesEnum.CLASS}" ]`).first()
+          if (ownerClassNode.empty()){
+            return
+          }
           sourceEntity = this.grapholscape
             .ontology
-            .getEntity(ind.neighborhood(`[ type = "${TypesEnum.CLASS}" ]`).first().data().iri)
+            .getEntity(ownerClassNode.data().iri)
 
-          if (parsedEntity && sourceEntity) {
+          if (parsedEntity) {
             entity = this.grapholscape.ontology.getEntity(parsedEntity.iri)
             if (!entity) {
               // if entity is not in current ontology, clear all occurrences
@@ -1044,28 +1112,35 @@ export default class OntologyBuilder {
             }
 
             addedElem = this.diagramBuilder.addIndividual(entity)
-            const sourceId = sourceEntity.getIdInDiagram(targetDiagram!.id, TypesEnum.CLASS, this.rendererState)
-            if (addedElem && sourceId) {
+            if (addedElem) {
               resultCollection = resultCollection.union(targetCy!.$id(addedElem.id))
-              addedElem = this.diagramBuilder.addEdge(addedElem?.id, sourceId, TypesEnum.INSTANCE_OF)
-              if (addedElem) {
-                resultCollection = resultCollection.union(targetCy!.$id(addedElem.id))
-              }
             }
           }
         })
 
-        diagramRepr?.cy.edges(`[ type = "${TypesEnum.INCLUSION}" ]`).forEach(inclusionEdge => {
-          sourceEntity = this.grapholscape.ontology.getEntity(inclusionEdge.source().data().iri)
-          targetEntity = this.grapholscape.ontology.getEntity(inclusionEdge.target().data().iri)
-          const sourceId = sourceEntity?.getIdInDiagram(targetDiagram!.id, TypesEnum.CLASS, this.rendererState)
-          const targetId = targetEntity?.getIdInDiagram(targetDiagram!.id, TypesEnum.CLASS, this.rendererState)
+        diagramRepr?.cy.nodes(`[ type = "${TypesEnum.IRI}" ]`).forEach(n => {
+          if (!this.diagramBuilder.diagramRepresentation.containsEntity(n.data().iri)) {
+            const iriNode = new GrapholNode(this.diagramBuilder.diagramRepresentation.getNewId('node'), n.data().type)
+            iriNode.iri = n.data().iri
+            iriNode.displayedName = n.data().iri
+            iriNode.diagramId = targetDiagram.id
+            const iriEntity = iriEntityMap.get(iriNode.iri) || new GrapholEntity(new Iri(iriNode.iri, []))
+            iriEntity.addOccurrence(iriNode, this.grapholscape.renderState)
+            iriEntityMap.set(iriNode.iri, iriEntity)
+            this.diagramBuilder.diagramRepresentation.addElement(iriNode)
+            resultCollection = resultCollection.union(targetCy!.$id(iriNode.id))
+          }
+        })
 
-          if (sourceId && targetId) {
-            addedElem = this.diagramBuilder.addEdge(sourceId, targetId, TypesEnum.INCLUSION)
-            if (addedElem) {
-              resultCollection = resultCollection.union(targetCy!.$id(addedElem.id))
-            }
+        diagramRepr?.cy.edges(`[ type = "${TypesEnum.INCLUSION}" ]`).forEach(e => addEdge(e))
+        diagramRepr?.cy.edges(`[ type = "${TypesEnum.EQUIVALENCE}" ]`).forEach(e => addEdge(e))
+        diagramRepr?.cy.edges(`[ type = "${TypesEnum.INSTANCE_OF}" ]`).forEach(e => addEdge(e))
+        diagramRepr?.cy.edges(`[ type = "${TypesEnum.ANNOTATION_PROPERTY}" ]`).forEach(e => {
+          const existingAnnPropEdges = targetCy.edges(`[ iri = "${e.data().iri}" `)
+            .filter(existingAnnPropEdge => existingAnnPropEdge.source().data().iri === e.source().data().iri && existingAnnPropEdge.target().data().iri === e.target().data().iri)
+
+          if (existingAnnPropEdges.empty()) {
+            addEdge(e)
           }
         })
 

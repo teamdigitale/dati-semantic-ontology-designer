@@ -87,7 +87,9 @@ export default function ClassAndIndividualForm(props: EntityFormProps & {
             return {
               ...i,
               name: i.name.trim(),
-              entity: entity && new GrapholEntity(entity.iri),
+              entity: entity
+                ? grapholscape.ontology.getEntity(entity.iri) || new GrapholEntity(entity.iri)
+                : undefined
             }
           })
           if (props.formType === 'hierarchy')

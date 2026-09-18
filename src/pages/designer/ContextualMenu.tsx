@@ -250,6 +250,7 @@ export function ContextualMenu() {
     commandsMap.set(TypesEnum.INDIVIDUAL, [findSimilarsToCommand, addInstanceOfEdge])
 
     commandsMap.set(TypesEnum.INCLUSION, [removeMultiple])
+    commandsMap.set(TypesEnum.EQUIVALENCE, [removeMultiple])
 
     commandsMap.set(TypesEnum.INSTANCE_OF, [removeMultiple])
 
@@ -840,6 +841,7 @@ export function ContextualMenu() {
       />}
 
       <OWLDrawer
+        title="RDF Data Examples"
         open={!!classesForDataExamples}
         onClose={() => setClassesForDataExamples(undefined)}
         formats={[FormatEnum.TURTLE]}
@@ -860,6 +862,7 @@ export function ContextualMenu() {
         open={!!findSimilarsTo}
         onClose={() => setFindSimilarsTo(undefined)}
         width={'40%'}
+        destroyOnHidden
       >
         <EntityCatalog findSimilarTo={findSimilarsTo} />
       </Drawer>

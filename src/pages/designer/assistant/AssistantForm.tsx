@@ -52,6 +52,7 @@ export default function AssistantForm(props: AssistantFormProps) {
   const [value, setValue] = useState('')
   const [showHistory, setShowHistory] = useState(false)
   const { requestHistory, setRequestHistory, onClose, isAssistantRequestPending } = useContext(AssistantContext)
+  const textAreaLengthLimit = props.textAreaLengthLimit || 10000
 
   const handleChange = (e: React.ChangeEvent<HTMLTextAreaElement>) => {
     setValue(e.target.value);
@@ -61,17 +62,18 @@ export default function AssistantForm(props: AssistantFormProps) {
     const reader = new FileReader();
     reader.onload = (e) => {
       const content = e.target?.result as string;
-      setValue(content);
+      setValue(content.slice(0, textAreaLengthLimit));
       return false; // Prevent default upload behavior
     };
     reader.readAsText(file);
     return false; // Prevent default upload behavior   
   }
 
+
   const historyTitle = <Flex justify="space-between">
     <Flex gap={8} align="center">
       <HistoryOutlined />
-      <Typography.Title level={5} style={{ margin: 0 }}>Request History</Typography.Title>
+      <Typography.Title level={5} style={{ margin: 0, color: 'inherit' }}>Request History</Typography.Title>
     </Flex>
     <Popconfirm
       title="Are you sure you want to clear the history? This action cannot be undone."
@@ -79,7 +81,7 @@ export default function AssistantForm(props: AssistantFormProps) {
     >
       <Button
         size="small"
-        style={{ alignSelf: "center" }}
+        style={{ alignSelf: "center", backgroundColor: requestHistory.length === 0 ? '#f0f0f0' : undefined }}
         icon={<ClearOutlined />}
         disabled={requestHistory.length === 0}
       >
@@ -111,7 +113,7 @@ export default function AssistantForm(props: AssistantFormProps) {
         <Flex vertical gap={8}>
           <Flex vertical gap={8} style={{ maxWidth: 800, alignSelf: 'center', width: "100%" }}>
             {acceptFiles && <Upload.Dragger
-              accept=".txt"
+              accept=".txt,.md"
               beforeUpload={upload}
               fileList={[]}
               disabled={loading || !!response}
@@ -123,7 +125,7 @@ export default function AssistantForm(props: AssistantFormProps) {
               style={{ marginBottom: 22 }}
               placeholder="Enter text..."
               rows={props.textAreaRows || 4}
-              maxLength={props.textAreaLengthLimit || 10000}
+              maxLength={textAreaLengthLimit}
               showCount
               disabled={loading || !!response}
               // style={{ maxHeight: 200 }}

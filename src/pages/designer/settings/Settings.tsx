@@ -117,8 +117,8 @@ const Settings = () => {
     {
       key: '5',
       label: 'ADMS-AP_IT Metadata',
-      children: <div style={{ width: 'calc(80vw - 200px)' }}>
-        <OntologyMetadataForm disabled={false} height='80vh' />
+      children: <div style={{ width: 'calc(80vw - 200px)', height: '75vh' }}>
+        <OntologyMetadataForm disabled={false} />
       </div>,
       icon: MdFormatAlignLeft({}),
     },

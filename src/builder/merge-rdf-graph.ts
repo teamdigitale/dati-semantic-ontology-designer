@@ -28,6 +28,8 @@ export default function mergeRDFGraph(grapholscape: Grapholscape, rdfGraphToMerg
   })
 
   const diagramBuilder = new DiagramBuilder(currentDiagram, rendererState)
+  diagramBuilder.entityNameType = grapholscape.entityNameType
+  diagramBuilder.language = grapholscape.language
 
   let objectPropertyEntity: GrapholEntity | undefined
   let sourceEntity: GrapholEntity
@@ -156,6 +158,8 @@ function addEdge(grapholscape: Grapholscape, edge: cytoscape.EdgeSingular, sourc
     }
 
     const diagramBuilder = new DiagramBuilder(diagramTobeUsed, RendererStatesEnum.FLOATY)
+    diagramBuilder.entityNameType = grapholscape.entityNameType
+    diagramBuilder.language = grapholscape.language
 
     if (sourceCyToBeUsed?.nonempty() && targetCyToBeUsed?.nonempty() && diagramTobeUsed && edge.data().type !== TypesEnum.ATTRIBUTE_EDGE) {
       // add only edge
