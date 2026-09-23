@@ -32,7 +32,7 @@ export default function OntologyDesignerStandalone() {
       {rdfGraph && <OntologyDesigner
         rdfGraph={rdfGraph}
         getOwl={async (rDFGraph, format) => await ConvertApi.getOntologyDraftAIDownload({ format, rDFGraph })}
-        sparqlEndpointConnection={{ endpointUrl: 'https://schema.gov.it/sparql' }}
+        sparqlEndpointConnection={{ endpointUrl: window['SPARQLEndpointURL'] || 'https://schema.gov.it/sparql' }}
         userManualURL="https://teamdigitale.github.io/dati-semantic-ontology-designer/"
       />}
 

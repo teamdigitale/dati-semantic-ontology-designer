@@ -52,7 +52,7 @@ class MetadataIndividualSelector extends Component<Props, State> {
   }
 
   componentDidUpdate(prevProps: Props, prevState: State) {
-    const hasEndpointChanged = prevProps.endpointconnection !== this.props.endpointconnection
+    const hasEndpointChanged = prevProps.endpointconnection.endpointUrl !== this.props.endpointconnection.endpointUrl
     if (hasEndpointChanged || prevState.loadingIndividual !== this.state.loadingIndividual) {
       this.exec()
     }

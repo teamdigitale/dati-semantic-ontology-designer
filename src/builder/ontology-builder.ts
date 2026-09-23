@@ -14,7 +14,7 @@ import {
   parseRDFGraph,
   ui,
 } from "grapholscape"
-import { RDFGraph, SHACLShape } from "src/gen"
+import { RDFGraph, RDFGraphConfigEntityNameTypeEnum, SHACLShape } from "src/gen"
 import { AdvancedFormProps, BaseEntityInfo } from "src/pages/designer/entity-form-props"
 import { GrapholscapeDesigner } from "."
 import { toggleComplete, toggleDisjointness } from "./edit-hierarchy"
@@ -1181,8 +1181,8 @@ export default class OntologyBuilder {
    * Given a new entity updated from a old entity, updates the label using
    * the new iri remainder.
    * 
-   * If the new entity has a label matching the old entity iri remainder,
-   * we can safely replace that label with a new one.
+   * If the new entity has a label matching the old entity label used
+   * for its displayed name, then replace it.
    * 
    * Language and camel/snake case conversion will follow the global
    * advanced settings.
@@ -1203,11 +1203,7 @@ export default class OntologyBuilder {
       annotationToRemove = labelAnnotations[0]
     } else if (oldEntity && labelAnnotations.length > 1) {
       annotationToRemove = labelAnnotations.find(a => {
-        // try finding a match in any possible case, we do not know settings at the time the label was created
-        return a.value === oldEntity.iri.remainder
-          || a.value === this.convertSnakeCase(this.convertCamelCase(oldEntity.iri.remainder))
-          || a.value === this.convertCamelCase(oldEntity.iri.remainder)
-          || a.value === this.convertSnakeCase(oldEntity.iri.remainder)
+        return a.value === oldEntity.getDisplayedName(RDFGraphConfigEntityNameTypeEnum.LABEL, advancedSettings.language)
       })
     }
 
