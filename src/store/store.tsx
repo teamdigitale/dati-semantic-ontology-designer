@@ -1,5 +1,5 @@
 // Entry component
-import { App, message as messageAnt, notification as notificationAnt, } from 'antd';
+import { App, Button, message as messageAnt, notification as notificationAnt, } from 'antd';
 import type { MessageInstance } from 'antd/es/message/interface';
 import type { NotificationInstance } from 'antd/es/notification/interface';
 import { Configuration, ErrorContext, ResponseContext } from 'src/gen';
@@ -35,7 +35,7 @@ let configuration: Configuration = new Configuration({
 })
 
 async function readErrorMessage(context: ResponseContext | ErrorContext) {
-  const reader = context.response.body?.getReader();
+  const reader = context.response?.body?.getReader();
   if (!reader) return;
   let msg = ''
   while (true) {
@@ -60,7 +60,10 @@ export function showError(message: string) {
     description: <div style={{ maxHeight: 300, overflow: 'auto' }}>
       {message}
     </div>,
-    duration: 0
+    duration: 0,
+    actions: <Button type='primary' size='small' onClick={() => notification.destroy()}>
+      Dismiss all
+    </Button>
   })
 }
 
@@ -78,6 +81,7 @@ export { message, notification };
 export let ConvertApi = new apis.ConvertApi(configuration)
 export let PromptApi = new apis.PromptApi(configuration)
 export let RAGApi = new apis.RAGApi(configuration)
+export let MetadataApi = new apis.MetadataApi(configuration)
 
 export const setStore = (
   newMessage: MessageInstance,

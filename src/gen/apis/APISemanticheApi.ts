@@ -16,15 +16,22 @@
 import * as runtime from '../runtime';
 import type {
   FileInfo,
+  FileInfoAndSemanticAnnotations,
   MWSXOntologyCatalogEntries,
   OntologyCatalogEntryStatus,
   OntologyCatalogHistory,
   PostApisemCatalogRequest,
+  PostApisemSchemaNameAnnotationsRequest,
   RDFGraph,
+  SchemaAndExclusionsIRIs,
+  SemanticAnnotations,
+  SimilarClasses,
 } from '../models/index';
 import {
     FileInfoFromJSON,
     FileInfoToJSON,
+    FileInfoAndSemanticAnnotationsFromJSON,
+    FileInfoAndSemanticAnnotationsToJSON,
     MWSXOntologyCatalogEntriesFromJSON,
     MWSXOntologyCatalogEntriesToJSON,
     OntologyCatalogEntryStatusFromJSON,
@@ -33,8 +40,16 @@ import {
     OntologyCatalogHistoryToJSON,
     PostApisemCatalogRequestFromJSON,
     PostApisemCatalogRequestToJSON,
+    PostApisemSchemaNameAnnotationsRequestFromJSON,
+    PostApisemSchemaNameAnnotationsRequestToJSON,
     RDFGraphFromJSON,
     RDFGraphToJSON,
+    SchemaAndExclusionsIRIsFromJSON,
+    SchemaAndExclusionsIRIsToJSON,
+    SemanticAnnotationsFromJSON,
+    SemanticAnnotationsToJSON,
+    SimilarClassesFromJSON,
+    SimilarClassesToJSON,
 } from '../models/index';
 
 export interface DeleteApisemCatalogNameRequest {
@@ -52,7 +67,17 @@ export interface PostApisemCatalogOperationRequest {
 }
 
 export interface PostApisemSchemaRequest {
-    fileInfo: FileInfo;
+    fileInfoAndSemanticAnnotations: FileInfoAndSemanticAnnotations;
+}
+
+export interface PostApisemSchemaMultipromptRequest {
+    schemaAndExclusionsIRIs: SchemaAndExclusionsIRIs;
+}
+
+export interface PostApisemSchemaNameAnnotationsOperationRequest {
+    name: string;
+    similarClass: string;
+    postApisemSchemaNameAnnotationsRequest: PostApisemSchemaNameAnnotationsRequest;
 }
 
 export interface PutApisemCatalogNameRequest {
@@ -338,13 +363,13 @@ export class APISemanticheApi extends runtime.BaseAPI {
     }
 
     /**
-     * Takes a YAML file containing the specification of a service and returns the YAML specification annotated
+     * Takes a JSON file containing the specification of a service, plus the list of semantic annotations for every schema component being annotated, and returns the JSON specification decorated with such annotations
      */
     async postApisemSchemaRaw(requestParameters: PostApisemSchemaRequest, initOverrides?: RequestInit | runtime.InitOverrideFunction): Promise<runtime.ApiResponse<FileInfo>> {
-        if (requestParameters['fileInfo'] == null) {
+        if (requestParameters['fileInfoAndSemanticAnnotations'] == null) {
             throw new runtime.RequiredError(
-                'fileInfo',
-                'Required parameter "fileInfo" was null or undefined when calling postApisemSchema().'
+                'fileInfoAndSemanticAnnotations',
+                'Required parameter "fileInfoAndSemanticAnnotations" was null or undefined when calling postApisemSchema().'
             );
         }
 
@@ -370,17 +395,130 @@ export class APISemanticheApi extends runtime.BaseAPI {
             method: 'POST',
             headers: headerParameters,
             query: queryParameters,
-            body: FileInfoToJSON(requestParameters['fileInfo']),
+            body: FileInfoAndSemanticAnnotationsToJSON(requestParameters['fileInfoAndSemanticAnnotations']),
         }, initOverrides);
 
         return new runtime.JSONApiResponse(response, (jsonValue) => FileInfoFromJSON(jsonValue));
     }
 
     /**
-     * Takes a YAML file containing the specification of a service and returns the YAML specification annotated
+     * Takes a JSON file containing the specification of a service, plus the list of semantic annotations for every schema component being annotated, and returns the JSON specification decorated with such annotations
      */
     async postApisemSchema(requestParameters: PostApisemSchemaRequest, initOverrides?: RequestInit | runtime.InitOverrideFunction): Promise<FileInfo> {
         const response = await this.postApisemSchemaRaw(requestParameters, initOverrides);
+        return await response.value();
+    }
+
+    /**
+     * Takes a YAML schema component in textual format and returns the list of classes that are similar to the schema provided
+     */
+    async postApisemSchemaMultipromptRaw(requestParameters: PostApisemSchemaMultipromptRequest, initOverrides?: RequestInit | runtime.InitOverrideFunction): Promise<runtime.ApiResponse<SimilarClasses>> {
+        if (requestParameters['schemaAndExclusionsIRIs'] == null) {
+            throw new runtime.RequiredError(
+                'schemaAndExclusionsIRIs',
+                'Required parameter "schemaAndExclusionsIRIs" was null or undefined when calling postApisemSchemaMultiprompt().'
+            );
+        }
+
+        const queryParameters: any = {};
+
+        const headerParameters: runtime.HTTPHeaders = {};
+
+        headerParameters['Content-Type'] = 'application/json';
+
+        if (this.configuration && this.configuration.accessToken) {
+            const token = this.configuration.accessToken;
+            const tokenString = await token("jwt", []);
+
+            if (tokenString) {
+                headerParameters["Authorization"] = `Bearer ${tokenString}`;
+            }
+        }
+
+        let urlPath = `/ai/apisem/schema/multiprompt`;
+
+        const response = await this.request({
+            path: urlPath,
+            method: 'POST',
+            headers: headerParameters,
+            query: queryParameters,
+            body: SchemaAndExclusionsIRIsToJSON(requestParameters['schemaAndExclusionsIRIs']),
+        }, initOverrides);
+
+        return new runtime.JSONApiResponse(response, (jsonValue) => SimilarClassesFromJSON(jsonValue));
+    }
+
+    /**
+     * Takes a YAML schema component in textual format and returns the list of classes that are similar to the schema provided
+     */
+    async postApisemSchemaMultiprompt(requestParameters: PostApisemSchemaMultipromptRequest, initOverrides?: RequestInit | runtime.InitOverrideFunction): Promise<SimilarClasses> {
+        const response = await this.postApisemSchemaMultipromptRaw(requestParameters, initOverrides);
+        return await response.value();
+    }
+
+    /**
+     * Takes as input the name of a schema component (as a path parameter) and the name of a similar class previously identified by the operator (as a query parameter) and returns the full set of semantic annotations for the given schema component w.r.t. to the similar class provided
+     */
+    async postApisemSchemaNameAnnotationsRaw(requestParameters: PostApisemSchemaNameAnnotationsOperationRequest, initOverrides?: RequestInit | runtime.InitOverrideFunction): Promise<runtime.ApiResponse<SemanticAnnotations>> {
+        if (requestParameters['name'] == null) {
+            throw new runtime.RequiredError(
+                'name',
+                'Required parameter "name" was null or undefined when calling postApisemSchemaNameAnnotations().'
+            );
+        }
+
+        if (requestParameters['similarClass'] == null) {
+            throw new runtime.RequiredError(
+                'similarClass',
+                'Required parameter "similarClass" was null or undefined when calling postApisemSchemaNameAnnotations().'
+            );
+        }
+
+        if (requestParameters['postApisemSchemaNameAnnotationsRequest'] == null) {
+            throw new runtime.RequiredError(
+                'postApisemSchemaNameAnnotationsRequest',
+                'Required parameter "postApisemSchemaNameAnnotationsRequest" was null or undefined when calling postApisemSchemaNameAnnotations().'
+            );
+        }
+
+        const queryParameters: any = {};
+
+        if (requestParameters['similarClass'] != null) {
+            queryParameters['similarClass'] = requestParameters['similarClass'];
+        }
+
+        const headerParameters: runtime.HTTPHeaders = {};
+
+        headerParameters['Content-Type'] = 'application/json';
+
+        if (this.configuration && this.configuration.accessToken) {
+            const token = this.configuration.accessToken;
+            const tokenString = await token("jwt", []);
+
+            if (tokenString) {
+                headerParameters["Authorization"] = `Bearer ${tokenString}`;
+            }
+        }
+
+        let urlPath = `/ai/apisem/schema/{name}/annotations`;
+        urlPath = urlPath.replace(`{${"name"}}`, encodeURIComponent(String(requestParameters['name'])));
+
+        const response = await this.request({
+            path: urlPath,
+            method: 'POST',
+            headers: headerParameters,
+            query: queryParameters,
+            body: PostApisemSchemaNameAnnotationsRequestToJSON(requestParameters['postApisemSchemaNameAnnotationsRequest']),
+        }, initOverrides);
+
+        return new runtime.JSONApiResponse(response, (jsonValue) => SemanticAnnotationsFromJSON(jsonValue));
+    }
+
+    /**
+     * Takes as input the name of a schema component (as a path parameter) and the name of a similar class previously identified by the operator (as a query parameter) and returns the full set of semantic annotations for the given schema component w.r.t. to the similar class provided
+     */
+    async postApisemSchemaNameAnnotations(requestParameters: PostApisemSchemaNameAnnotationsOperationRequest, initOverrides?: RequestInit | runtime.InitOverrideFunction): Promise<SemanticAnnotations> {
+        const response = await this.postApisemSchemaNameAnnotationsRaw(requestParameters, initOverrides);
         return await response.value();
     }
 

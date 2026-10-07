@@ -1,5 +1,5 @@
 import { AutoComplete, Form, Popover, Select, Switch, Tag } from "antd";
-import { useContext, useState } from "react";
+import { useContext, useRef, useState } from "react";
 import { FormContext } from "src/pages/designer/FormContext";
 import { ToolbarContext } from "src/pages/designer/ToolbarContext";
 import { formItemStyle } from "src/utils/utils";
@@ -18,6 +18,7 @@ export default function AdvancedForm({
 
   const [labelEnabled, setLabelEnabled] = useState(true)
   const formRef = Form.useForm()[0]
+  const languageTimeout = useRef<NodeJS.Timeout | null>(null)
 
   const fieldNames = {
     "namespace": "Namespace",
@@ -26,30 +27,40 @@ export default function AdvancedForm({
     "convertSnake": "Snake case conversion",
   }
 
-  const handleOk = async (changedFields: { name: string[], value: string }[]) => {
+  const handleOk = async (changedFields: AdvancedFormProps) => {
     formRef.validateFields()
       .then((values: AdvancedFormProps) => {
         const newAdvancedValues = {
           ...advancedValues,
           ...values,
         }
-        if (!grapholscape.ontology.languages.includes(newAdvancedValues.language)) {
+        if (newAdvancedValues.language && !grapholscape.ontology.languages.includes(newAdvancedValues.language)) {
           grapholscape.ontology.languages.push(newAdvancedValues.language)
           newAdvancedValues.languageList = grapholscape.ontology.languages
         }
         setAdvancedValues(newAdvancedValues)
         onSubmit && onSubmit()
-        message.success(`${changedFields.map(f => fieldNames[f.name[0]] || f.name[0]).join(', ')} updated successfully.`)
+        message.success(`${Object.keys(changedFields).map(f => fieldNames[f] || f).join(', ')} updated successfully.`)
       })
-      .catch((e) => console.log(e))
   }
 
   return <Form
     form={formRef}
     name="advanced-form"
     initialValues={advancedValues}
-    onFinish={handleOk}
-    onFieldsChange={handleOk}
+    onValuesChange={(changedValues) => {
+      const changedLanguage = changedValues.language
+      console.log(changedLanguage)
+      if (typeof changedLanguage === "string" && changedLanguage !== advancedValues.language) {
+        if (languageTimeout.current) {
+          clearTimeout(languageTimeout.current)
+          languageTimeout.current = null
+        }
+        languageTimeout.current = setTimeout(() => handleOk(changedValues), 1000)
+      } else {
+        handleOk(changedValues)
+      }
+    }}
   >
     <Form.Item
       name='namespace'

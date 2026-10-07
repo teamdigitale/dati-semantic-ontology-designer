@@ -105,7 +105,7 @@ export default class EntityCatalogQueryManager {
       if (searchValue) {
         switch (searchMode) {
           case 'comment':
-            regex = `FILTER(regex(str(?comment), '${escapeRegExp(searchValue)}', 'i')`
+            regex = `FILTER(regex(str(?comment), '${escapeRegExp(searchValue)}', 'i'))`
             break
           case 'ontology':
             regex = `FILTER(regex(str(?ontology), '${escapeRegExp(searchValue)}', 'i') || regex(?ontologyLabel, '${escapeRegExp(searchValue)}', 'i'))`

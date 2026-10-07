@@ -15,9 +15,12 @@
 
 import * as runtime from '../runtime';
 import type {
+  OWL2RDFGraphConversionResult,
   RDFGraph,
 } from '../models/index';
 import {
+    OWL2RDFGraphConversionResultFromJSON,
+    OWL2RDFGraphConversionResultToJSON,
     RDFGraphFromJSON,
     RDFGraphToJSON,
 } from '../models/index';
@@ -25,6 +28,11 @@ import {
 export interface GetOntologyDraftAIDownloadRequest {
     format?: string;
     rDFGraph?: RDFGraph;
+}
+
+export interface GetOntologyDraftAIDownloadRejectedAxiomsRequest {
+    format?: string;
+    file?: Blob;
 }
 
 export interface PostOntologyDraftAIConvertOWLRequest {
@@ -85,9 +93,75 @@ export class ConvertApi extends runtime.BaseAPI {
     }
 
     /**
+     * Download the rejected axioms in OWL2
+     */
+    async getOntologyDraftAIDownloadRejectedAxiomsRaw(requestParameters: GetOntologyDraftAIDownloadRejectedAxiomsRequest, initOverrides?: RequestInit | runtime.InitOverrideFunction): Promise<runtime.ApiResponse<string>> {
+        const queryParameters: any = {};
+
+        if (requestParameters['format'] != null) {
+            queryParameters['format'] = requestParameters['format'];
+        }
+
+        const headerParameters: runtime.HTTPHeaders = {};
+
+        if (this.configuration && this.configuration.accessToken) {
+            const token = this.configuration.accessToken;
+            const tokenString = await token("jwt", []);
+
+            if (tokenString) {
+                headerParameters["Authorization"] = `Bearer ${tokenString}`;
+            }
+        }
+        const consumes: runtime.Consume[] = [
+            { contentType: 'multipart/form-data' },
+        ];
+        // @ts-ignore: canConsumeForm may be unused
+        const canConsumeForm = runtime.canConsumeForm(consumes);
+
+        let formParams: { append(param: string, value: any): any };
+        let useForm = false;
+        // use FormData to transmit files using content-type "multipart/form-data"
+        useForm = canConsumeForm;
+        if (useForm) {
+            formParams = new FormData();
+        } else {
+            formParams = new URLSearchParams();
+        }
+
+        if (requestParameters['file'] != null) {
+            formParams.append('file', requestParameters['file'] as any);
+        }
+
+
+        let urlPath = `/ai/ontologyDraft/download/rejectedAxioms`;
+
+        const response = await this.request({
+            path: urlPath,
+            method: 'POST',
+            headers: headerParameters,
+            query: queryParameters,
+            body: formParams,
+        }, initOverrides);
+
+        if (this.isJsonMime(response.headers.get('content-type'))) {
+            return new runtime.JSONApiResponse<string>(response);
+        } else {
+            return new runtime.TextApiResponse(response) as any;
+        }
+    }
+
+    /**
+     * Download the rejected axioms in OWL2
+     */
+    async getOntologyDraftAIDownloadRejectedAxioms(requestParameters: GetOntologyDraftAIDownloadRejectedAxiomsRequest = {}, initOverrides?: RequestInit | runtime.InitOverrideFunction): Promise<string> {
+        const response = await this.getOntologyDraftAIDownloadRejectedAxiomsRaw(requestParameters, initOverrides);
+        return await response.value();
+    }
+
+    /**
      * Convert an OWL file in RDFGraph model
      */
-    async postOntologyDraftAIConvertOWLRaw(requestParameters: PostOntologyDraftAIConvertOWLRequest, initOverrides?: RequestInit | runtime.InitOverrideFunction): Promise<runtime.ApiResponse<RDFGraph>> {
+    async postOntologyDraftAIConvertOWLRaw(requestParameters: PostOntologyDraftAIConvertOWLRequest, initOverrides?: RequestInit | runtime.InitOverrideFunction): Promise<runtime.ApiResponse<OWL2RDFGraphConversionResult>> {
         const queryParameters: any = {};
 
         const headerParameters: runtime.HTTPHeaders = {};
@@ -131,13 +205,13 @@ export class ConvertApi extends runtime.BaseAPI {
             body: formParams,
         }, initOverrides);
 
-        return new runtime.JSONApiResponse(response, (jsonValue) => RDFGraphFromJSON(jsonValue));
+        return new runtime.JSONApiResponse(response, (jsonValue) => OWL2RDFGraphConversionResultFromJSON(jsonValue));
     }
 
     /**
      * Convert an OWL file in RDFGraph model
      */
-    async postOntologyDraftAIConvertOWL(requestParameters: PostOntologyDraftAIConvertOWLRequest = {}, initOverrides?: RequestInit | runtime.InitOverrideFunction): Promise<RDFGraph> {
+    async postOntologyDraftAIConvertOWL(requestParameters: PostOntologyDraftAIConvertOWLRequest = {}, initOverrides?: RequestInit | runtime.InitOverrideFunction): Promise<OWL2RDFGraphConversionResult> {
         const response = await this.postOntologyDraftAIConvertOWLRaw(requestParameters, initOverrides);
         return await response.value();
     }

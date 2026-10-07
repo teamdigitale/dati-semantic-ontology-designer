@@ -5,3 +5,4 @@ window["aiConfig"] = {
   }
 }
 
+window['SPARQLEndpointURL'] = 'https://virtuoso-test-external-service-ndc-test.apps.cloudpub.testedev.istat.it/sparql'

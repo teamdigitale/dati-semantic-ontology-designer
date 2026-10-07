@@ -1,5 +1,5 @@
 import { DeleteOutlined, DownloadOutlined, EditOutlined, ImportOutlined, PlusOutlined, SaveOutlined } from "@ant-design/icons"
-import { Button, Flex, Form, Input, Modal, Popconfirm, Popover, Switch, Table, Tabs, Upload } from "antd"
+import { Button, Divider, Flex, Form, Input, Modal, Popconfirm, Popover, Switch, Table, Tabs, Upload } from "antd"
 import { ColumnsType } from "antd/es/table"
 import { AnnotatedElement, Annotation, DefaultAnnotationProperties, DefaultNamespaces, Iri, Namespace } from "grapholscape"
 import { useContext, useEffect, useRef, useState } from "react"
@@ -13,8 +13,9 @@ import { FormContext } from "../FormContext"
 import CreateNamespaceModal from "../namespaces/CreateNamespaceModal"
 import EditNamespaceModal from "../namespaces/EditNamespaceModal"
 import { ToolbarContext } from "../ToolbarContext"
-import { getColumnSearchProps, getNamespaces } from "src/utils/utils"
+import { getColumnSearchProps, getNamespaces, refactorEntitiesNamespace } from "src/utils/utils"
 import { ApiContext } from "../ApiContext"
+import ImportDeclarations from "./ImportDeclarations"
 
 export type AnnotationRecord = {
   subject?: string,
@@ -58,12 +59,14 @@ export default function OntologyManager() {
   const [namespaceRecordToEdit, setNamespaceRecordToEdit] = useState<NamespaceRecord | undefined>()
   const [createNamespace, setCreateNamespace] = useState(false)
   const [importNamespaceLoading, setImportNamespaceLoading] = useState(false)
+  // IMPORTS
+  const [importDeclarationsData, setImportDeclarationsData] = useState<string[]>([])
 
   const [downloadAnnotations, setDownloadAnnotations] = useState(false)
 
   useEffect(() => {
     updateData()
-  }, [setAnnotationPropertiesData, setNamespacesData])
+  }, [setAnnotationPropertiesData, setNamespacesData, setImportDeclarationsData])
 
   const updateData = () => {
     setAnnotationPropertiesData(
@@ -71,6 +74,7 @@ export default function OntologyManager() {
         .map((property, i) => getIriRecord(property, i.toString()))
     )
     updateNamespaces()
+    setImportDeclarationsData(grapholscape.ontology.importDeclarations)
   }
 
   const updateNamespaces = () => {
@@ -181,12 +185,16 @@ export default function OntologyManager() {
       const iri = ontologyIriFormRef.current.getFieldValue('Ontology IRI') ?? grapholscape.ontology.iri;
       const versionIri = ontologyIriFormRef.current.getFieldValue('Ontology Version IRI') ?? grapholscape.ontology.version;
       const oldIri = grapholscape.ontology.iri;
+      const previousNamespace = grapholscape.ontology.getNamespace(oldIri)
       grapholscape.ontology.iri = iri;
       grapholscape.ontology.version = versionIri;
       const refactorIris = ontologyIriFormRef.current.getFieldValue('refactorIris') ?? true;
       editOntologyNamespace(oldIri, iri);
       if (refactorIris) {
-        refactorEntitiesIris(oldIri, iri);
+        const newNamespace = grapholscape.ontology.getNamespace(iri)
+        if (previousNamespace && newNamespace) {
+          refactorEntitiesNamespace(grapholscape, previousNamespace, newNamespace)
+        }
       }
       message.success(`Ontology IRI updated successfully`);
     }
@@ -210,16 +218,6 @@ export default function OntologyManager() {
       ...advancedValues,
       namespace: selectedDefaultNamespace,
       namespaceList: grapholscape.ontology.namespaces
-    })
-  }
-
-  const refactorEntitiesIris = (oldIri: string, iri: string) => {
-    const newNamespace = grapholscape.ontology.getNamespace(iri)
-    grapholscape.ontology.entities.forEach(e => {
-      if (e.iri.namespace.value === oldIri) {
-        const newIri = new Iri(iri + e.iri.remainder, [newNamespace], e.iri.remainder)
-        e.iri = newIri
-      }
     })
   }
 
@@ -284,6 +282,13 @@ export default function OntologyManager() {
             Save
           </Button>
         </>
+      },
+      {
+        label: 'Import Declarations',
+        key: 'imports',
+        children: <div style={{ maxHeight: '75vh', overflow: 'auto' }}>
+          <ImportDeclarations />
+        </div>
       },
       {
         label: 'Ontology Annotations',
@@ -453,12 +458,19 @@ function getNamespaceRecord(namespace: Namespace, prefix: string, key: string): 
   }
 }
 
-export const getEditDeleteButtons = (onEdit: () => void, onDelete: () => void, hideEdit = false, hideDelete = false) => {
+export const getEditDeleteButtons = (
+  onEdit: () => void,
+  onDelete: () => void,
+  options?: {
+    edit?: { hidden?: boolean, disabled?: boolean },
+    delete?: { hidden?: boolean, disabled?: boolean },
+  }) => {
   return <Flex gap={8} justify="end">
-    {!hideEdit && <Button icon={<EditOutlined />} onClick={() => onEdit()} />}
-    {!hideDelete &&
+    {!options?.edit?.hidden && 
+      <Button disabled={options?.edit?.disabled} icon={<EditOutlined />} onClick={() => onEdit()} />}
+    {!options?.delete?.hidden &&
       <Popconfirm onConfirm={() => onDelete()} title={"Are you sure?"}>
-        <Button danger icon={<DeleteOutlined />} />
+        <Button danger disabled={options?.delete?.disabled} icon={<DeleteOutlined />} />
       </Popconfirm>
     }
   </Flex>

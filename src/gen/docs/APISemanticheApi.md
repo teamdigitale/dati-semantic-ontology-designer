@@ -10,7 +10,9 @@ All URIs are relative to *https://localhost:8080*
 | [**getApisemCatalogHistory**](APISemanticheApi.md#getapisemcataloghistory) | **GET** /ai/apisem/catalog/history | Returns the list of operations executed on the ontology catalog |
 | [**getApisemCatalogNameStatus**](APISemanticheApi.md#getapisemcatalognamestatus) | **GET** /ai/apisem/catalog/{name}/status | Returns the current status of a given ontology catalog entry |
 | [**postApisemCatalog**](APISemanticheApi.md#postapisemcatalogoperation) | **POST** /ai/apisem/catalog | Adds a new ontology to the current ontology catalog, creates the corresponding vector DB instance |
-| [**postApisemSchema**](APISemanticheApi.md#postapisemschema) | **POST** /ai/apisem/schema | Takes a YAML file containing the specification of a service and returns the YAML specification annotated |
+| [**postApisemSchema**](APISemanticheApi.md#postapisemschema) | **POST** /ai/apisem/schema | Takes a JSON file containing the specification of a service, plus the list of semantic annotations for every schema component being annotated, and returns the JSON specification decorated with such annotations |
+| [**postApisemSchemaMultiprompt**](APISemanticheApi.md#postapisemschemamultiprompt) | **POST** /ai/apisem/schema/multiprompt | Takes a YAML schema component in textual format and returns the list of classes that are similar to the schema provided |
+| [**postApisemSchemaNameAnnotations**](APISemanticheApi.md#postapisemschemanameannotationsoperation) | **POST** /ai/apisem/schema/{name}/annotations | Takes as input the name of a schema component (as a path parameter) and the name of a similar class previously identified by the operator (as a query parameter) and returns the full set of semantic annotations for the given schema component w.r.t. to the similar class provided |
 | [**putApisemCatalogName**](APISemanticheApi.md#putapisemcatalogname) | **PUT** /ai/apisem/catalog/{name} | Replace the given ontology in the catalog with the one provided in the request body |
 
 
@@ -419,9 +421,9 @@ example().catch(console.error);
 
 ## postApisemSchema
 
-> FileInfo postApisemSchema(fileInfo)
+> FileInfo postApisemSchema(fileInfoAndSemanticAnnotations)
 
-Takes a YAML file containing the specification of a service and returns the YAML specification annotated
+Takes a JSON file containing the specification of a service, plus the list of semantic annotations for every schema component being annotated, and returns the JSON specification decorated with such annotations
 
 ### Example
 
@@ -441,8 +443,8 @@ async function example() {
   const api = new APISemanticheApi(config);
 
   const body = {
-    // FileInfo
-    fileInfo: ...,
+    // FileInfoAndSemanticAnnotations
+    fileInfoAndSemanticAnnotations: ...,
   } satisfies PostApisemSchemaRequest;
 
   try {
@@ -462,11 +464,157 @@ example().catch(console.error);
 
 | Name | Type | Description  | Notes |
 |------------- | ------------- | ------------- | -------------|
-| **fileInfo** | [FileInfo](FileInfo.md) |  | |
+| **fileInfoAndSemanticAnnotations** | [FileInfoAndSemanticAnnotations](FileInfoAndSemanticAnnotations.md) |  | |
 
 ### Return type
 
 [**FileInfo**](FileInfo.md)
+
+### Authorization
+
+[jwt](../README.md#jwt)
+
+### HTTP request headers
+
+- **Content-Type**: `application/json`
+- **Accept**: `application/json`
+
+
+### HTTP response details
+| Status code | Description | Response headers |
+|-------------|-------------|------------------|
+| **200** | Successful operation |  -  |
+| **401** | Unhauthorized |  -  |
+
+[[Back to top]](#) [[Back to API list]](../README.md#api-endpoints) [[Back to Model list]](../README.md#models) [[Back to README]](../README.md)
+
+
+## postApisemSchemaMultiprompt
+
+> SimilarClasses postApisemSchemaMultiprompt(schemaAndExclusionsIRIs)
+
+Takes a YAML schema component in textual format and returns the list of classes that are similar to the schema provided
+
+### Example
+
+```ts
+import {
+  Configuration,
+  APISemanticheApi,
+} from '';
+import type { PostApisemSchemaMultipromptRequest } from '';
+
+async function example() {
+  console.log("🚀 Testing  SDK...");
+  const config = new Configuration({ 
+    // Configure HTTP bearer authorization: jwt
+    accessToken: "YOUR BEARER TOKEN",
+  });
+  const api = new APISemanticheApi(config);
+
+  const body = {
+    // SchemaAndExclusionsIRIs
+    schemaAndExclusionsIRIs: ...,
+  } satisfies PostApisemSchemaMultipromptRequest;
+
+  try {
+    const data = await api.postApisemSchemaMultiprompt(body);
+    console.log(data);
+  } catch (error) {
+    console.error(error);
+  }
+}
+
+// Run the test
+example().catch(console.error);
+```
+
+### Parameters
+
+
+| Name | Type | Description  | Notes |
+|------------- | ------------- | ------------- | -------------|
+| **schemaAndExclusionsIRIs** | [SchemaAndExclusionsIRIs](SchemaAndExclusionsIRIs.md) |  | |
+
+### Return type
+
+[**SimilarClasses**](SimilarClasses.md)
+
+### Authorization
+
+[jwt](../README.md#jwt)
+
+### HTTP request headers
+
+- **Content-Type**: `application/json`
+- **Accept**: `application/json`
+
+
+### HTTP response details
+| Status code | Description | Response headers |
+|-------------|-------------|------------------|
+| **200** | Successful operation |  -  |
+| **401** | Unhauthorized |  -  |
+
+[[Back to top]](#) [[Back to API list]](../README.md#api-endpoints) [[Back to Model list]](../README.md#models) [[Back to README]](../README.md)
+
+
+## postApisemSchemaNameAnnotations
+
+> SemanticAnnotations postApisemSchemaNameAnnotations(name, similarClass, postApisemSchemaNameAnnotationsRequest)
+
+Takes as input the name of a schema component (as a path parameter) and the name of a similar class previously identified by the operator (as a query parameter) and returns the full set of semantic annotations for the given schema component w.r.t. to the similar class provided
+
+### Example
+
+```ts
+import {
+  Configuration,
+  APISemanticheApi,
+} from '';
+import type { PostApisemSchemaNameAnnotationsOperationRequest } from '';
+
+async function example() {
+  console.log("🚀 Testing  SDK...");
+  const config = new Configuration({ 
+    // Configure HTTP bearer authorization: jwt
+    accessToken: "YOUR BEARER TOKEN",
+  });
+  const api = new APISemanticheApi(config);
+
+  const body = {
+    // string | the name of the schema component
+    name: name_example,
+    // string | the value of the similar class identified by the operator
+    similarClass: similarClass_example,
+    // PostApisemSchemaNameAnnotationsRequest
+    postApisemSchemaNameAnnotationsRequest: ...,
+  } satisfies PostApisemSchemaNameAnnotationsOperationRequest;
+
+  try {
+    const data = await api.postApisemSchemaNameAnnotations(body);
+    console.log(data);
+  } catch (error) {
+    console.error(error);
+  }
+}
+
+// Run the test
+example().catch(console.error);
+```
+
+### Parameters
+
+
+| Name | Type | Description  | Notes |
+|------------- | ------------- | ------------- | -------------|
+| **name** | `string` | the name of the schema component | [Defaults to `undefined`] |
+| **similarClass** | `string` | the value of the similar class identified by the operator | [Defaults to `undefined`] |
+| **postApisemSchemaNameAnnotationsRequest** | [PostApisemSchemaNameAnnotationsRequest](PostApisemSchemaNameAnnotationsRequest.md) |  | |
+
+### Return type
+
+[**SemanticAnnotations**](SemanticAnnotations.md)
 
 ### Authorization
 

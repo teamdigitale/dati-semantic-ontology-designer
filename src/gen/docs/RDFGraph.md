@@ -16,6 +16,7 @@ Name | Type
 `actions` | [Array&lt;Action&gt;](Action.md)
 `creator` | string
 `constraints` | [Array&lt;SHACLShape&gt;](SHACLShape.md)
+`importDeclarations` | Array&lt;string&gt;
 
 ## Example
 
@@ -34,6 +35,7 @@ const example = {
   "actions": null,
   "creator": null,
   "constraints": null,
+  "importDeclarations": null,
 } satisfies RDFGraph
 
 console.log(example)

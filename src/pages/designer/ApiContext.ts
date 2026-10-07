@@ -1,8 +1,9 @@
 import { createContext } from "react";
-import { RDFGraph } from "src/gen";
+import { OWL2RDFGraphConversionResult, RDFGraph } from "src/gen";
 
 type ApiContextType = {
-  convertOWLToRDFGraph: (owl: Blob, fileType: string) => Promise<RDFGraph>
+  convertOWLToRDFGraph: (owl: Blob, fileType: string) => Promise<OWL2RDFGraphConversionResult>
+  getRejectedAxiomsOntology: (file: Blob, format: string) => Promise<string>
   externalOntologiesOptions?: Option[]
   onSelectMonolithOntology?: (name: string, version: string) => Promise<RDFGraph>
   sparqlEndpointConnection?: SPARQLEndpointConnection

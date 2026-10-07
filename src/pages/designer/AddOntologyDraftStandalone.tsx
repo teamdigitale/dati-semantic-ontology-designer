@@ -1,25 +1,41 @@
+import { DownloadOutlined } from '@ant-design/icons';
 import {
   Button,
+  Drawer,
+  Flex,
   Form,
   Input,
+  Popover,
+  Tag,
   Typography
 } from 'antd';
 import { DefaultAnnotationProperties, DefaultNamespaces, EntityNameType, Language } from 'grapholscape';
 import { useEffect, useRef, useState } from 'react';
+import { GrapholscapeDesigner } from 'src/builder';
 import { RDFGraph, RDFGraphModelTypeEnum } from 'src/gen';
-import { ConvertApi } from 'src/store/store';
+import { ConvertApi, message, MetadataApi } from 'src/store/store';
 import { ApiContext } from './ApiContext';
 import RDFGraphImporter from './RDFGraphImporter';
 import removeDiagramsFromRDFGraph from './RemoveDiagramsFromRDFGraph';
+import OntologyMetadataForm from './settings/metadata/OntologyMetadataForm';
+import { ToolbarContext } from './ToolbarContext';
+import { downloadTextFile } from 'src/utils/utils';
+import { FormatEnum } from 'src/model';
 
 var rdfGraph: RDFGraph | undefined
+let grapholscape: GrapholscapeDesigner | undefined
 
 function AddOntologyDraft(props: {
-  open: Function
+  open: (rdfGraph: RDFGraph) => void,
 }) {
   const [form] = Form.useForm()
   const iriInputRef = useRef<any>(null)
   const [versionIriTouched, setVersionIriTouched] = useState(false)
+  const [endpointURL, setEndpointURL] = useState('https://schema.gov.it/sparql')
+  const [editMetadata, setEditMetadata] = useState(false)
+  const [importedFile, setImportedFile] = useState<File | undefined>(undefined)
+
+  let endpointInputTimeout: NodeJS.Timeout | undefined = undefined
 
   useEffect(() => {
     // Focus on the IRI input after component mounts
@@ -28,7 +44,8 @@ function AddOntologyDraft(props: {
     }, 0)
   }, [])
 
-  const submit = async (values) => {
+  const submit = async (mode: 'design' | 'metadata') => {
+    const values = await form.validateFields()
     if (!rdfGraph) {
       rdfGraph = {
         diagrams: [{
@@ -85,14 +102,21 @@ function AddOntologyDraft(props: {
       rdfGraph = removeDiagramsFromRDFGraph(rdfGraph, diagramsToImport)
     }
 
-    props.open(rdfGraph)
+    if (mode === 'metadata') {
+      grapholscape = new GrapholscapeDesigner(rdfGraph, document.createElement('div'))
+      setEditMetadata(true)
+    }
+
+    if (mode === 'design') {
+      props.open(rdfGraph)
+    }
   }
 
   const iri = "https://w3id.org/italia/onto/example/"
   return <Form
     form={form}
     layout="vertical"
-    onFinish={submit}
+    // onFinish={(values) => submit(values, mode)}
     initialValues={{ iri, versionIri: iri + '1.0' }}>
     <Form.Item
       label="Ontology IRI"
@@ -127,20 +151,77 @@ function AddOntologyDraft(props: {
       />
     </Form.Item>
     <ApiContext.Provider value={{
-      convertOWLToRDFGraph: (owlFile) => ConvertApi.postOntologyDraftAIConvertOWL({ file: owlFile })
+      convertOWLToRDFGraph: (owlFile) => ConvertApi.postOntologyDraftAIConvertOWL({ file: owlFile }),
+      getRejectedAxiomsOntology: (file, format) => ConvertApi.getOntologyDraftAIDownloadRejectedAxioms({ file, format }),
+      sparqlEndpointConnection: { endpointUrl: endpointURL }
     }}>
-      <RDFGraphImporter
-        onRDFGraphReady={function (_rdfGraph?: RDFGraph): void {
+      {!editMetadata && <RDFGraphImporter
+        onRDFGraphReady={function (_rdfGraph?: RDFGraph, _importedFile?: File): void {
           rdfGraph = _rdfGraph;
-          form.setFieldsValue({ iri: rdfGraph?.metadata.iri || '', versionIri: rdfGraph?.metadata.version || '' })
+          setImportedFile(_importedFile)
+          form.setFieldsValue({
+            iri: rdfGraph?.metadata.iri || iri,
+            versionIri: rdfGraph?.metadata.version || iri + '1.0'
+          })
         }}
-      />
+      />}
+      <ToolbarContext.Provider value={{
+        grapholscape: grapholscape as GrapholscapeDesigner,
+        remoteCatalogEntities: [],
+        setRemoteCatalogEntities: () => { },
+        designerAssistantSettings: {
+          iriStyle: true,
+          simpleNameLanguage: 'it',
+        },
+        setDesignerAssistantSettings: () => { }
+      }}>
+        <Drawer
+          title="Edit Ontology Metadata"
+          width={'60vw'}
+          open={editMetadata}
+          maskClosable={false}
+          onClose={() => {
+            rdfGraph = undefined
+            setImportedFile(undefined)
+            form.setFieldsValue({
+              iri: iri,
+              versionIri: iri + '1.0'
+            })
+            setEditMetadata(false)
+          }}
+          extra={
+            <Input prefix={<Tag>SPARQL Endpoint:</Tag>} style={{ minWidth: 350 }} defaultValue={endpointURL} onChange={(e) => {
+              if (endpointInputTimeout) {
+                clearTimeout(endpointInputTimeout)
+              }
+              endpointInputTimeout = setTimeout(() => {
+                setEndpointURL(e.target.value)
+                message.info('SPARQL endpoint URL updated.')
+              }, 500)
+            }} />}>
+
+
+          <OntologyMetadataForm
+            disabled={false}
+            importedFile={importedFile}
+            standalone
+            saveButtonText='Ontology With Metadata'
+            saveButtonProps={{ icon: <DownloadOutlined /> }}
+          />
+        </Drawer>
+      </ToolbarContext.Provider>
     </ApiContext.Provider>
-    <Form.Item style={{ textAlign: 'center', marginTop: 48 }}>
-      <Button htmlType='submit' type="primary">
-        Ok
+
+    <Flex justify="center" gap={16} align="center" style={{ marginTop: 32 }}>
+      <Popover content="Import an ontology to edit metadata.">
+        <Button onClick={() => submit('metadata')} disabled={!importedFile}>
+          Edit Metadata
+        </Button>
+      </Popover>
+      <Button type="primary" onClick={() => submit('design')}>
+        Start Editing
       </Button>
-    </Form.Item>
+    </Flex>
   </Form>
 }
 

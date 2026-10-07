@@ -13,6 +13,7 @@ export default class OWLDrawer extends React.Component<{
   getOwl: (format: string) => Promise<string | { content: string }>,
   formats?: FormatEnum[],
   fileName: string,
+  title?: string
 }> {
   formRef = React.createRef<FormInstance>();
   formats = this.props.formats || formats
@@ -61,7 +62,7 @@ export default class OWLDrawer extends React.Component<{
     return (
       <Drawer
         open={this.props.open}
-        title="OWL Preview"
+        title={this.props.title || "OWL Preview"}
         width={'50vw'}
         onClose={() => { this.props.onClose() }}
         loading={this.state.loading}

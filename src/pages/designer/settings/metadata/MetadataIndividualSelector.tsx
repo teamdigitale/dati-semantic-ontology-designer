@@ -2,7 +2,7 @@ import { EditOutlined, PlusOutlined } from '@ant-design/icons';
 import type { Literal } from '@rdfjs/types';
 import { Button, Descriptions, Drawer, Form, Popover, Select, Spin, Tag, Tooltip } from 'antd';
 import { FormInstance } from 'antd/lib';
-import { Annotation, Iri, RendererStatesEnum, TypesEnum } from 'grapholscape';
+import { Annotation, GrapholEntity, Iri, RendererStatesEnum, TypesEnum } from 'grapholscape';
 import React, { Component } from 'react';
 import ParsingClient from 'sparql-http-client/ParsingClient';
 import { GrapholscapeDesigner } from 'src/builder';
@@ -11,8 +11,7 @@ import { message, showError } from 'src/store/store';
 import { MetadataProperty, ndcPrefixes } from './metadataProperties';
 import { SPARQLEndpointConnection } from '../../ApiContext';
 
-class MetadataIndividualSelector extends Component<{
-  annotations?: Annotation[],
+type Props = {
   endpointconnection?: SPARQLEndpointConnection,
   property: string,
   iri: string,
@@ -20,15 +19,30 @@ class MetadataIndividualSelector extends Component<{
   metadataProperty: MetadataProperty[],
   grapholscape?: GrapholscapeDesigner,
   language?: string,
-  parentForm?: FormInstance
-}> {
+  parentForm?: FormInstance,
+  annotations?: Map<string, Annotation[]>,
+  randomForRerender?: number,
+  refresh?: () => void
+}
+
+type State = {
+  loadingIndividual: boolean,
+  annotations: Map<string, Annotation[]>,
+  individualIRIs: string[],
+  editIndividual: string | null,
+  definedIndividuals: { iri: string, descriptions: React.ReactNode }[],
+  drawerVisible: boolean,
+  submitting: boolean
+}
+
+class MetadataIndividualSelector extends Component<Props, State> {
   form = React.createRef<FormInstance>()
-  state = {
+  state: State = {
     loadingIndividual: true,
     annotations: new Map<string, Annotation[]>(),
     individualIRIs: [],
-    editIndividual: null as string | null,
-    definedIndividuals: [] as { iri: string, descriptions: React.ReactElement }[],
+    editIndividual: null,
+    definedIndividuals: [],
     drawerVisible: false,
     submitting: false
   }
@@ -37,76 +51,79 @@ class MetadataIndividualSelector extends Component<{
     this.updateAnnotations()
   }
 
-  componentDidUpdate(prevProps, prevState) {
-    if (prevState.loadingIndividual !== this.state.loadingIndividual) {
+  componentDidUpdate(prevProps: Props, prevState: State) {
+    const hasEndpointChanged = prevProps.endpointconnection.endpointUrl !== this.props.endpointconnection.endpointUrl
+    if (hasEndpointChanged || prevState.loadingIndividual !== this.state.loadingIndividual) {
       this.exec()
     }
-    if (this.state.editIndividual && this.state.editIndividual !== prevState.editIndividual) {
+    if (hasEndpointChanged || (this.state.editIndividual && this.state.editIndividual !== prevState.editIndividual)) {
       this.editIndividual()
+    }
+    if (hasEndpointChanged || this.props.randomForRerender !== prevProps.randomForRerender) {
+      this.updateAnnotations()
     }
   }
 
   updateAnnotations = () => {
-    const annotations = this.props.annotations?.filter(i => i.propertyIri.fullIri === this.props.property) || []
     const individualIRIs: string[] = []
     let map = new Map<string, Annotation[]>()
-    if (annotations.length > 0) {
-      for (let annotation of annotations) {
-        const annotations = this.props.grapholscape.ontology.entities[annotation.value].annotations || []
-        map.set(annotation.value, annotations)
-        individualIRIs.push(annotation.value)
-      }
-    }
-    for (let diagram of this.props.grapholscape.ontology.diagrams.values()) {
+    this.props.grapholscape?.ontology.entities.forEach(e => {
+      const annotations = e.getAnnotations() || []
+      map.set(e.iri.fullIri, annotations)
+    })
+    for (let diagram of this.props.grapholscape?.ontology.diagrams.values() || []) {
       const classNode = diagram.representations.get(RendererStatesEnum.FLOATY)?.cy?.$(`[iri = "${this.props.iri}"]`)
-      const individualNodes = classNode.incomers(`[type = "${TypesEnum.INSTANCE_OF}"]`).sources()
-      individualNodes.forEach(individualNode => {
+      const individualNodes = classNode?.incomers(`[type = "${TypesEnum.INSTANCE_OF}"]`).sources()
+      individualNodes?.forEach(individualNode => {
         individualIRIs.push(individualNode.attr('iri'))
       })
     }
     this.setState({ annotations: map, individualIRIs, loadingIndividual: false })
+
   }
 
   exec = async () => {
-    try {
-      const parsingClient = new ParsingClient(this.props.endpointconnection)
-      const results = await parsingClient.query.select(`
+    this.setState({ definedIndividuals: [] })
+    if (this.props.endpointconnection) {
+      try {
+        const parsingClient = new ParsingClient(this.props.endpointconnection)
+        const results = await parsingClient.query.select(`
     select distinct *
     {
       ?x a <${this.props.iri}>.
       ${this.props.metadataProperty.map((i, index) => i.iri === 'iri'
-        ? ''
-        : `OPTIONAL { 
+          ? ''
+          : `OPTIONAL { 
         ?x <${i.iri}> ?y${index}.
         ${i.lang ? `FILTER(lang(?y${index})='${this.props.language}')` : ''}
       }.`).join('\n')}
     }
     ORDER BY ?x`)
-      this.setState({
-        definedIndividuals: results.map(row => ({
-          iri: row.x.value,
-          descriptions: this.props.metadataProperty.map((i, index) => {
-            return <Descriptions.Item
-              label={i.label}
-              key={i.label}>{(index === 0 ? row.x : row['y' + index])?.value}
-            </Descriptions.Item>
-          })
-        }))
-      })
-    }
-    catch (error) {
-      showError(`Error fetching individuals of the class <${this.props.iri}>. ${error.message}`)
-      console.error('Error fetching individuals of the class:', error)
+        this.setState({
+          definedIndividuals: results.map(row => ({
+            iri: row.x.value,
+            descriptions: this.props.metadataProperty.map((i, index) => {
+              return <Descriptions.Item
+                label={i.label}
+                key={i.label}>{(index === 0 ? row.x : row['y' + index])?.value}
+              </Descriptions.Item>
+            })
+          }))
+        })
+      } catch (error: any) {
+        showError(`Error fetching individuals of the class <${this.props.iri}>. ${error.message}`)
+        console.error('Error fetching individuals of the class:', error)
+      }
     }
   }
 
-  submit = async (values) => {
+  submit = async (values: any) => {
     this.setState({ submitting: true })
     // ADD "INSTANCE OF" TO ONTOLOGY
     // values.iri -> rdfType -> this.props.iri
     const ontologyBuilder = new OntologyBuilder(this.props.grapholscape)
     ontologyBuilder.addIndividualAndClassElementsForMetadata(values.iri, this.props.iri)
-    const ge = this.props.grapholscape.ontology.getEntity(values.iri)
+    const ge = this.props.grapholscape?.ontology.getEntity(values.iri)
     if (!ge) return
 
     Object.keys(values).forEach(i => {
@@ -134,10 +151,14 @@ class MetadataIndividualSelector extends Component<{
     })
     try {
       message.success(this.props.title + ' added!')
-      this.updateAnnotations()
+      this.props.refresh?.()
+      let oldValues = this.props.parentForm?.getFieldValue(this.props.property) || []
+      if (!Array.isArray(oldValues)) {
+        oldValues = [oldValues]
+      }
       this.props.parentForm?.setFieldValue(
         this.props.property,
-        [...(this.props.parentForm?.getFieldValue(this.props.property) || []), values.iri])
+        [...oldValues, values.iri])
       this.setState({ submitting: false, drawerVisible: false })
     } catch (error) {
       console.error(error)
@@ -148,7 +169,7 @@ class MetadataIndividualSelector extends Component<{
   editIndividual = async () => {
     const iri = this.state.editIndividual
     if (!iri) return
-    let values = { iri }
+    let values: { iri: string;[key: string]: any } = { iri }
     const inOntology = this.state.annotations.get(iri)
     if (inOntology) {
       inOntology.forEach(i => {
@@ -161,7 +182,7 @@ class MetadataIndividualSelector extends Component<{
           values[i.propertyIri.fullIri] = i.value
         }
       })
-    } else {
+    } else if (this.props.endpointconnection) {
       const parsingClient = new ParsingClient(this.props.endpointconnection)
       const results = await parsingClient.query.select(`
         select distinct *
@@ -220,7 +241,7 @@ class MetadataIndividualSelector extends Component<{
                       onClick={() => this.setState({ drawerVisible: true, editIndividual: i.iri })}>Edit</Button>
                   </div> */}
                 </div>}>
-            <div style={{ display: 'flex', justifyContent: 'space-between' }}>{i.iri}<Tag color='blue'>external</Tag></div>
+            <div style={{ display: 'flex', justifyContent: 'space-between', gap: 4 }}>{i.iri}<Tag color='blue'>external</Tag></div>
           </Popover>,
           value: i.iri
         })
@@ -236,7 +257,6 @@ class MetadataIndividualSelector extends Component<{
                 this.state.loadingIndividual
                   ? <Spin size='small' />
                   : <div>
-
                     <Descriptions bordered size='small' column={1} style={{ width: 550 }}>
                       {this.props.metadataProperty.map(i => {
                         let value

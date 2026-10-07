@@ -11,7 +11,7 @@ import { GoLinkExternal } from 'react-icons/go';
 import drawNewEdge from 'src/builder/edge-creation/draw-new-edge';
 import { computeIRI } from 'src/builder/iri-processing';
 import DesignerToolbar from 'src/builder/ui/toolbar';
-import { Namespace as NamespaceGen, RDFGraph, TypesEnum } from 'src/gen';
+import { Namespace as NamespaceGen, OWL2RDFGraphConversionResult, RDFGraph, TypesEnum } from 'src/gen';
 import { RequestHistoryItem } from 'src/model';
 import { AdvancedFormProps } from 'src/pages/designer/entity-form-props';
 import { ConvertApi, message } from 'src/store/store';
@@ -44,7 +44,8 @@ export default class OntologyDesigner extends React.Component<{
   getOwl: (rdfGraph: RDFGraph, format: string) => Promise<string>
   saveDraft?: (rdfGraph: RDFGraph) => void
   saveVersion?: (rdfGraph: RDFGraph) => RDFGraph
-  convertOWLToRDFGraph?: (owlFile: Blob) => Promise<RDFGraph>
+  convertOWLToRDFGraph?: (owlFile: Blob) => Promise<OWL2RDFGraphConversionResult>
+  getRejectedAxiomsOntology?: (owlFile: Blob, format: string) => Promise<string>
   sparqlEndpointConnection?: SPARQLEndpointConnection
   defaultNamespaces?: NamespaceGen[]
   userManualURL?: string
@@ -95,7 +96,7 @@ export default class OntologyDesigner extends React.Component<{
     explainerAssistantHistory: [] as RequestHistoryItem[],
     designerAssistantSettings: {
       iriStyle: true as boolean,
-      simpleNameLanguage: 'en' as string
+      simpleNameLanguage: 'it' as string
     },
     isAssistantRequestPending: false as boolean,
     userManualVisible: false as boolean,
@@ -340,7 +341,24 @@ export default class OntologyDesigner extends React.Component<{
   render() {
     return (
       <ApiContext.Provider value={{
-        convertOWLToRDFGraph: (owl: Blob) => this.props.convertOWLToRDFGraph?.(owl) || ConvertApi.postOntologyDraftAIConvertOWL({ file: owl }),
+        convertOWLToRDFGraph: (owl: Blob) => {
+          return new Promise((resolve) => {
+            if (this.props.convertOWLToRDFGraph) {
+              this.props.convertOWLToRDFGraph(owl).then((result) => resolve(result))
+            } else {
+              ConvertApi.postOntologyDraftAIConvertOWL({ file: owl }).then(result => resolve(result))
+            }
+          })
+        },
+        getRejectedAxiomsOntology: (file, format) => {
+          return new Promise((resolve) => {
+            if (this.props.getRejectedAxiomsOntology) {
+              this.props.getRejectedAxiomsOntology(file, format).then((result) => resolve(result))
+            } else {
+              ConvertApi.getOntologyDraftAIDownloadRejectedAxioms({ file, format }).then(result => resolve(result))
+            }
+          })
+        },
         sparqlEndpointConnection: this.state.sparqlEndpointConnection,
         setSparqlEndpointURL: (newURL: string, importNamespaces = false) => {
           if (importNamespaces && this.state.grapholscape) {
@@ -575,7 +593,7 @@ export default class OntologyDesigner extends React.Component<{
                       styles={{ body: { padding: 0, overflow: 'hidden' } }}
                       width={'50vw'}
                       extra={<Button
-                        title="Open User Manual in New Tab"
+                        // title="Open User Manual in New Tab"\
                         onClick={() => window.open(this.props.userManualURL, '_blank')}
                         icon={GoLinkExternal({ size: "1.2em", })}></Button>}
                     >
@@ -592,7 +610,7 @@ export default class OntologyDesigner extends React.Component<{
             </Layout.Content>
             {this.state.grapholscape && window["aiConfig"] && <>
               <Layout.Sider
-                title='AI Ontology Designer Assistant'
+                // title='AI Ontology Designer Assistant'
                 collapsed={this.state.assistantVisible === undefined}
                 collapsedWidth={0}
                 width="calc(35vw)"

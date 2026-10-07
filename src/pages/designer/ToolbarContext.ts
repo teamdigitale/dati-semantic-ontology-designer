@@ -19,7 +19,7 @@ export const ToolbarContext = createContext<ToolbarContextType>({
   setRemoteCatalogEntities: () => { },
   designerAssistantSettings: {
     iriStyle: true,
-    simpleNameLanguage: 'en',
+    simpleNameLanguage: 'it',
   },
   setDesignerAssistantSettings: () => { }
 })
