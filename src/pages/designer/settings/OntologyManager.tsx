@@ -13,7 +13,7 @@ import { FormContext } from "../FormContext"
 import CreateNamespaceModal from "../namespaces/CreateNamespaceModal"
 import EditNamespaceModal from "../namespaces/EditNamespaceModal"
 import { ToolbarContext } from "../ToolbarContext"
-import { getColumnSearchProps, getNamespaces } from "src/utils/utils"
+import { getColumnSearchProps, getNamespaces, refactorEntitiesNamespace } from "src/utils/utils"
 import { ApiContext } from "../ApiContext"
 import ImportDeclarations from "./ImportDeclarations"
 
@@ -185,12 +185,16 @@ export default function OntologyManager() {
       const iri = ontologyIriFormRef.current.getFieldValue('Ontology IRI') ?? grapholscape.ontology.iri;
       const versionIri = ontologyIriFormRef.current.getFieldValue('Ontology Version IRI') ?? grapholscape.ontology.version;
       const oldIri = grapholscape.ontology.iri;
+      const previousNamespace = grapholscape.ontology.getNamespace(oldIri)
       grapholscape.ontology.iri = iri;
       grapholscape.ontology.version = versionIri;
       const refactorIris = ontologyIriFormRef.current.getFieldValue('refactorIris') ?? true;
       editOntologyNamespace(oldIri, iri);
       if (refactorIris) {
-        refactorEntitiesIris(oldIri, iri);
+        const newNamespace = grapholscape.ontology.getNamespace(iri)
+        if (previousNamespace && newNamespace) {
+          refactorEntitiesNamespace(grapholscape, previousNamespace, newNamespace)
+        }
       }
       message.success(`Ontology IRI updated successfully`);
     }
@@ -214,16 +218,6 @@ export default function OntologyManager() {
       ...advancedValues,
       namespace: selectedDefaultNamespace,
       namespaceList: grapholscape.ontology.namespaces
-    })
-  }
-
-  const refactorEntitiesIris = (oldIri: string, iri: string) => {
-    const newNamespace = grapholscape.ontology.getNamespace(iri)
-    grapholscape.ontology.entities.forEach(e => {
-      if (e.iri.namespace && e.iri.namespace.value === oldIri) {
-        const newIri = new Iri(iri + e.iri.remainder, [newNamespace], e.iri.remainder)
-        e.iri = newIri
-      }
     })
   }
 

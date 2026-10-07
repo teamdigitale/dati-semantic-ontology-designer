@@ -208,26 +208,32 @@ export const simpleNameRegex = new RegExp(/^[\s\p{Letter}0-9._~-]+$/u)
  * - entity had a namespace whose value has been changed
  * - entity IRI has an unknown namespace but it starts 
  *   with the new namespace => assign it
- * @param grapholscape 
- * @param oldNamespace 
- * @param newNamespace 
  */
+export function refactorEntitiesNamespace(grapholscape: Grapholscape, newNamespace: Namespace): void
+export function refactorEntitiesNamespace(grapholscape: Grapholscape, oldNamespace: Namespace, newNamespace: Namespace) 
 export function refactorEntitiesNamespace(grapholscape: Grapholscape, oldNamespace: Namespace, newNamespace?: Namespace) {
+  const newNamespaceToAssign = newNamespace || oldNamespace
   // create an array from the map cause changing the map in place would otherwise
   // generate infinite loop if we iterate over the map entries.
   Array.from(grapholscape.ontology.entities.values()).forEach(entity => {
     if (
-      (newNamespace && !grapholscape.ontology.getNamespace(entity.iri.namespace.value) && entity.iri.fullIri.startsWith(newNamespace.value))
-      || entity.iri.namespace.value === oldNamespace.value) {
+      (newNamespace && !grapholscape.ontology.getNamespace(entity.iri.namespaceValue) && entity.iri.fullIri.startsWith(newNamespace.value))
+      || entity.iri.namespaceValue === oldNamespace.value
+    ) {
       grapholscape.ontology.entities.delete(entity.iri.fullIri)
-      entity.iri = new Iri(newNamespace + entity.iri.remainder, [newNamespace])
+      entity.iri = new Iri(newNamespaceToAssign + entity.iri.remainder, [newNamespaceToAssign])
       entity.occurrences.get(grapholscape.renderState)?.forEach(occ => {
         occ.iri = entity.iri.fullIri
         occ.displayedName = entity.getDisplayedName(grapholscape.entityNameType, grapholscape.language)
-        grapholscape.ontology.getDiagram(occ.diagramId)
+        const diagramRepr = grapholscape.ontology.getDiagram(occ.diagramId)
           ?.representations
           .get(grapholscape.renderState)
-          ?.updateElement(occ, entity, false)
+          
+        if (diagramRepr) {
+          diagramRepr.updateElement(occ, entity, false)
+          // updateElement does not change iri, change it manually!
+          diagramRepr.cy.$id(occ.id).data('iri', occ.iri)
+        }
       })
       grapholscape.ontology.addEntity(entity)
     }
